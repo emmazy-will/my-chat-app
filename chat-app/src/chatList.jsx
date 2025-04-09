@@ -1,6 +1,18 @@
-import "./App.css";
 import { useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
+import {
+  Container,
+  Row,
+  Col,
+  Image,
+  Form,
+  Button,
+  InputGroup,
+  Modal,
+  Badge,
+  ListGroup,
+  Spinner
+} from "react-bootstrap";
 import defaultProfile from "./assets/me.jpg"; // Default profile image
 import { FaSearch, FaUserEdit, FaPen } from "react-icons/fa";
 import { db } from "./firebase";
@@ -281,172 +293,200 @@ const ChatList = ({ setSelectedChat }) => {
     setIsModalOpen(false);
   };
 
-  if (loading) {
-    return (
-      <div className="bg-gradient-to-b from-[#0F044C] via-[#141E61] via-[#00D4FF] to-[#000000] px-3 py-3 w-full h-screen flex-1 text-white flex justify-center items-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-t-blue-500 border-b-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p>Loading your chats...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Filter users based on search query and exclude current user
   const filteredUsers = users.filter(user => 
     user.id !== currentUser?.id && 
     (user.name?.toLowerCase() || "").includes(searchQuery.toLowerCase())
   );
 
-  return (
-    <div className="bg-gradient-to-b from-[#0F044C] via-[#141E61] via-[#00D4FF] to-[#000000] px-3 py-3 w-full h-screen flex-1 text-white">
-      <ToastContainer />
-      <div className="flex items-center mb-6 py-2">
-        <img
-          src={currentUser?.profilePic || defaultProfile}
-          alt="Profile"
-          className="w-12 h-12 rounded-full object-cover mr-3"
-          title="Your Profile Image"
-          onError={(e) => { e.target.src = defaultProfile; }}
-        />
-        <div className="flex flex-col">
-          <span className="font-semibold text-lg">{currentUser?.name || "Anonymous"}</span>
-          <span className="text-sm text-blue-400">
-            {totalUnreadCount > 0 ? `${totalUnreadCount} unread message${totalUnreadCount !== 1 ? 's' : ''}` : 'Online'}
-          </span>
+  if (loading) {
+    return (
+      <Container fluid className="d-flex justify-content-center align-items-center vh-100 "style={{ background: 'linear-gradient(135deg, #007bff, #0056b3)', color: 'white' }}>
+        <div className="text-center text-white">
+          <Spinner animation="border" variant="light" className="mb-3" />
+          <p>Loading your chats...</p>
         </div>
-        <button 
-          className="ml-auto p-2 text-gray-400 hover:text-blue-500 transition-colors" 
-          onClick={() => setIsModalOpen(true)}
-          aria-label="Edit profile"
-        >
-          <FaUserEdit size={25} />
-        </button>
+      </Container>
+    );
+  }
+
+  return (
+    <Container fluid className="vh-100 d-flex flex-column p-3  text-white"style={{ background: 'linear-gradient(135deg,rgb(160, 56, 201), #0056b3)', color: 'white' }}>
+      <ToastContainer />
+      
+      {/* Header with profile info */}
+      <Row className="mb-4 align-items-center">
+        <Col xs="auto">
+          <Image
+            src={currentUser?.profilePic || defaultProfile}
+            alt="Profile"
+            roundedCircle
+            width={48}
+            height={48}
+            className="object-fit-cover"
+            onError={(e) => { e.target.src = defaultProfile; }}
+          />
+        </Col>
+        <Col>
+          <div className="fw-bold fs-5">{currentUser?.name || "Anonymous"}</div>
+          <div className="small text-info">
+            {totalUnreadCount > 0 ? `${totalUnreadCount} unread message${totalUnreadCount !== 1 ? 's' : ''}` : 'Online'}
+          </div>
+        </Col>
+        <Col xs="auto">
+          <Button 
+            variant="link" 
+            className="text-light p-1"
+            onClick={() => setIsModalOpen(true)}
+            aria-label="Edit profile"
+          >
+            <FaUserEdit size={22} />
+          </Button>
+        </Col>
+      </Row>
+
+      {/* Search bar */}
+      <InputGroup className="mb-4">
+        <InputGroup.Text className="bg-transparent text-light border-secondary">
+          <FaSearch />
+        </InputGroup.Text>
+        <Form.Control
+          placeholder="Search users"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="bg-transparent text-light border-secondary"
+        />
+      </InputGroup>
+
+      {/* User list */}
+      <div className="flex-grow-1 overflow-auto">
+        <ListGroup variant="flush" className="h-100">
+          {filteredUsers.length > 0 ? (
+            filteredUsers.map((user) => (
+              <ListGroup.Item 
+                key={user.id}
+                action
+                onClick={() => openChat(user)}
+                className="d-flex align-items-center justify-content-between bg-transparent text-white border-secondary border-opacity-25 rounded-2 mb-2"
+              >
+                <div className="d-flex align-items-center">
+                  <div className="position-relative">
+                    <Image
+                      src={user.profilePic || defaultProfile}
+                      alt={user.name || "User"}
+                      roundedCircle
+                      width={48}
+                      height={48}
+                      className="me-3 object-fit-cover"
+                      onError={(e) => { e.target.src = defaultProfile; }}
+                    />
+                  </div>
+                  <div>
+                    <div className="fw-medium">{user.name || "Unknown"}</div>
+                  </div>
+                </div>
+                {unreadCounts[user.id] > 0 && (
+                  <Badge bg="danger" pill>
+                    {unreadCounts[user.id]}
+                  </Badge>
+                )}
+              </ListGroup.Item>
+            ))
+          ) : (
+            <div className="text-center py-4 text-light-emphasis">
+              {searchQuery ? "No users found matching your search" : "No other users available"}
+            </div>
+          )}
+        </ListGroup>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/75 flex justify-center items-center z-50" onClick={closeModal}>
-          <div className="bg-[#24013C] p-6 rounded-lg w-80 shadow-lg relative" onClick={e => e.stopPropagation()}>
-            <button 
-              className="absolute top-2 right-3 text-gray-400 hover:text-white text-xl" 
-              onClick={closeModal}
-              aria-label="Close modal"
-            >
-              ×
-            </button>
-            <h2 className="text-2xl font-bold mb-4">Profile Info</h2>
+      {/* Profile Edit Modal */}
+      <Modal show={isModalOpen} onHide={closeModal} centered>
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title>Profile Info</Modal.Title>
+        </Modal.Header>
+        
+        <Modal.Body className="bg-primary text-white">
+          <div className="text-center mb-4">
+            <Image
+              src={currentUser?.profilePic || defaultProfile}
+              alt="Profile"
+              roundedCircle
+              width={100}
+              height={100}
+              className="object-fit-cover"
+              onError={(e) => { e.target.src = defaultProfile; }}
+            />
+          </div>
+          
+          <Form>
+            <Form.Group className="mb-3">
+              <div className="d-flex align-items-center">
+                <Form.Label className="fw-bold me-2 mb-0">Name:</Form.Label>
+                {editingField === "name" ? (
+                  <Form.Control
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    className="bg-transparent text-white border-light"
+                    size="sm"
+                  />
+                ) : (
+                  <span>{currentUser?.name || "Anonymous"}</span>
+                )}
+                <Button 
+                  variant="link" 
+                  className="ms-2 p-0 text-light-emphasis"
+                  onClick={() => setEditingField("name")}
+                >
+                  <FaPen size={14} />
+                </Button>
+              </div>
+            </Form.Group>
             
-            <div className="flex justify-center mb-4">
-              <img
-                src={currentUser?.profilePic || defaultProfile}
-                alt="Profile"
-                className="w-24 h-24 rounded-full object-cover"
-                onError={(e) => { e.target.src = defaultProfile; }}
-              />
-            </div>
-            
-            <div className="mb-3">
-              <strong>Name:</strong>{" "}
-              {editingField === "name" ? (
-                <input
-                  value={editedName}
-                  onChange={(e) => setEditedName(e.target.value)}
-                  className="bg-transparent border-b border-gray-400 px-1 ml-2 text-white outline-none"
-                />
-              ) : (
-                <span className="ml-2">{currentUser?.name || "Anonymous"}</span>
-              )}
-              <FaPen
-                className="inline ml-2 cursor-pointer text-gray-400 hover:text-gray-200"
-                onClick={() => setEditingField("name")}
-              />
-            </div>
-            
-            <div className="mb-3">
-              <strong>Email:</strong>{" "}
-              {editingField === "email" ? (
-                <input
-                  value={editedEmail}
-                  onChange={(e) => setEditedEmail(e.target.value)}
-                  className="bg-transparent border-b border-gray-400 px-1 ml-2 text-white outline-none"
-                  type="email"
-                />
-              ) : (
-                <span className="ml-2">{currentUser?.email || "Not Available"}</span>
-              )}
-              <FaPen
-                className="inline ml-2 cursor-pointer text-gray-400 hover:text-gray-200"
-                onClick={() => setEditingField("email")}
-              />
-            </div>
+            <Form.Group className="mb-3">
+              <div className="d-flex align-items-center">
+                <Form.Label className="fw-bold me-2 mb-0">Email:</Form.Label>
+                {editingField === "email" ? (
+                  <Form.Control
+                    type="email"
+                    value={editedEmail}
+                    onChange={(e) => setEditedEmail(e.target.value)}
+                    className="bg-transparent text-white border-light"
+                    size="sm"
+                  />
+                ) : (
+                  <span>{currentUser?.email || "Not Available"}</span>
+                )}
+                <Button 
+                  variant="link" 
+                  className="ms-2 p-0 text-light-emphasis"
+                  onClick={() => setEditingField("email")}
+                >
+                  <FaPen size={14} />
+                </Button>
+              </div>
+            </Form.Group>
             
             {editingField && (
-              <button 
-                className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg mt-3 transition-colors"
+              <Button 
+                variant="success" 
+                size="sm" 
+                className="mt-2" 
                 onClick={saveChanges}
               >
                 Save
-              </button>
+              </Button>
             )}
-            
-            <button
-              className="mt-5 w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition-colors"
-              onClick={handleLogout}
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center mb-5 px-3 py-2 border-2 border-gray-700 rounded-lg focus-within:border-blue-500 transition-colors">
-        <FaSearch className="text-gray-400 mr-2" />
-        <input
-          type="text"
-          placeholder="Search users"
-          className="bg-transparent w-full outline-none text-sm"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-
-      <div className="overflow-y-auto h-[calc(100vh-180px)] pb-5 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-        {filteredUsers.length > 0 ? (
-          filteredUsers.map((user) => (
-            <div
-              key={user.id}
-              onClick={() => openChat(user)}
-              className="flex items-center justify-between p-3 rounded-md hover:bg-[#070010]/50 cursor-pointer mb-2 transition-colors"
-            >
-              <div className="flex items-center">
-                <div className="relative">
-                  <img
-                    src={user.profilePic || defaultProfile}
-                    alt={user.name || "User"}
-                    className="w-12 h-12 rounded-full object-cover mr-3"
-                    onError={(e) => { e.target.src = defaultProfile; }}
-                  />
-                  {/* Online indicator would go here if we had user status */}
-                </div>
-                <div>
-                  <div className="font-medium">{user.name || "Unknown"}</div>
-                  {/* Last message preview would go here */}
-                </div>
-              </div>
-              {unreadCounts[user.id] > 0 && (
-                <span className="bg-red-500 text-white text-xs rounded-full h-5 min-w-[20px] px-1 flex items-center justify-center">
-                  {unreadCounts[user.id]}
-                </span>
-              )}
-            </div>
-          ))
-        ) : (
-          <div className="text-center py-8 text-gray-400">
-            {searchQuery ? "No users found matching your search" : "No other users available"}
-          </div>
-        )}
-      </div>
-    </div>
+          </Form>
+        </Modal.Body>
+        
+        <Modal.Footer className="bg-primary text-white">
+          <Button variant="danger" onClick={handleLogout} className="w-100">
+            Logout
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </Container>
   );
 };
 

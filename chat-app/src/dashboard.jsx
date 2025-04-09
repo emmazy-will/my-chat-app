@@ -1,77 +1,107 @@
 import React, { useState, useEffect } from "react";
 import ChatList from "./chatList";
 import WholeChats from "./chats";
-import myimage from "./assets/me.jpg"
 import { getAuth, onAuthStateChanged } from "firebase/auth";
-import "./App.css";
 import { ErrorBoundary } from 'react-error-boundary';
+import { Container, Row, Col, Modal, Button, Spinner } from 'react-bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import "./App.css"; // We'll create this CSS file
 
 function ErrorFallback({ error }) {
   return (
-    <div className="p-4 text-red-500">
-      <p>Something went wrong:</p>
-      <pre>{error.message}</pre>
+    <div className="alert alert-danger m-3">
+      <h5>Something went wrong:</h5>
+      <pre className="mt-2 overflow-auto">{error.message}</pre>
     </div>
   );
 }
 
-
 const Dashboard = () => {
   const [selectedChat, setSelectedChat] = useState(null);
   const [user, setUser] = useState(null);
-  const [showModal, setShowModal] = useState(true); // Modal visibility state
+  const [showModal, setShowModal] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const auth = getAuth();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user); // Store the logged-in user
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsLoading(false);
       
-      // Hide modal 2 seconds after auth check
-      setTimeout(() => setShowModal(false), 2000);
+      // Hide welcome modal after 2 seconds
+      const timer = setTimeout(() => setShowModal(false), 2000);
+      return () => clearTimeout(timer);
     });
 
     return () => unsubscribe();
   }, [auth]);
 
+  const handleBackToList = () => {
+    setSelectedChat(null);
+  };
+
   return (
-    <div className="bg-gradient-to-b from-[#000428] via-[#004e92] via-[#2b5876] to-[#000000] flex items-center justify-center h-screen w-screen overflow-hidden">
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-          <div className="bg-[#24013C] text-white p-4 rounded-lg shadow-lg text-center">
-            <p className="text-lg font-semibold">Welcome to the Chatroom...</p>
-          </div>
-        </div>
-      )}
+    <div className="dashboard-container">
+      {/* Welcome Modal using Bootstrap */}
+      <Modal
+        show={showModal}
+        centered
+        backdrop="static"
+        className="welcome-modal"
+      >
+        <Modal.Body>
+          <h4>Welcome to the Wizchat...</h4>
+        </Modal.Body>
+      </Modal>
 
-      <div className="flex w-screen h-screen">
-        {/* Chat List - Always visible on large screens */}
-        <div className={`w-full md:w-1/3 lg:w-1/3 ${selectedChat ? "hidden md:block" : "block"}`}>
-          <ErrorBoundary FallbackComponent={ErrorFallback}>
-            <ChatList setSelectedChat={setSelectedChat} />
-          </ErrorBoundary>
-        </div>
+      {isLoading ? (
+        <Container fluid className="loading-container">
+          <Spinner animation="border" variant="light" className="custom-spinner" />
+        </Container>
+      ) : (
+        <Container fluid className="main-container p-0">
+          <Row className="g-0 full-height">
+            {/* Chat List Column */}
+            <Col 
+              md={4} 
+              lg={3} 
+              className={`chat-list-column ${selectedChat ? 'd-none d-md-block' : ''}`}
+            >
+              <ErrorBoundary FallbackComponent={ErrorFallback}>
+                <ChatList setSelectedChat={setSelectedChat} />
+              </ErrorBoundary>
+            </Col>
 
-        {/* Whole Chat Section - Show only if user is logged in */}
-        <div className={`w-full md:w-2/3 lg:w-2/3 ${selectedChat ? "block" : "hidden md:block"} background`}>
-          {user ? (
-            <div className="h-full flex items-center justify-center text-white">
-              {selectedChat ? (
-                <WholeChats selectedChat={selectedChat} setSelectedChat={setSelectedChat} />
+            {/* Chat Content Column */}
+            <Col md={selectedChat ? 8 : 8} lg={selectedChat ? 9 : 9} className="chat-content-column">
+              {user ? (
+                selectedChat ? (
+                  <div className="selected-chat-container">
+                    {/* Mobile back button */}
+                    <div className="mobile-back-button d-md-none">
+                    
+                    </div>
+                    <WholeChats selectedChat={selectedChat} setSelectedChat={setSelectedChat} />
+                  </div>
+                ) : (
+                  <div className="no-chat-selected">
+                    <div className="message-container d-none d-md-block">
+                      <h3>Select a chat to start messaging</h3>
+                      <p className="tagline">Powered by Wizchat</p>
+                    </div>
+                  </div>
+                )
               ) : (
-                <div className="flex flex-col items-center">
-                  <p className="text-white text-2xl font-bold">Select a chat to see your conversations</p>
-                  <p className="text-white text-sm italic">Brought to you by chatroom!</p>
+                <div className="login-message">
+                  <div className="message-container">
+                    <h4>Please log in to view your conversations</h4>
+                  </div>
                 </div>
               )}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-white p-3 text-white text-lg">
-              Please Log in to view your conversations.
-            </div>
-          )}
-        </div>
-      </div>
+            </Col>
+          </Row>
+        </Container>
+      )}
     </div>
   );
 };

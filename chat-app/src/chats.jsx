@@ -1,9 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
-import "./App.css";
+import { 
+  Container, 
+  Row, 
+  Col, 
+  Image, 
+  Form, 
+  Button, 
+  Card, 
+  Dropdown,
+  InputGroup,
+  Badge,
+  Spinner,
+  Overlay
+} from "react-bootstrap";
 import EmojiPicker from "emoji-picker-react";
 import defaultProfile from "./assets/me.jpg";
-import { FaSmile, FaPaperPlane, FaArrowLeft } from "react-icons/fa";
-import { BiDotsVerticalRounded, BiCheck, BiCheckDouble } from "react-icons/bi";
+import { FaSmile, FaPaperPlane, FaArrowLeft, FaReply, FaEdit, FaTrash } from "react-icons/fa";
+import { BiCheck, BiCheckDouble } from "react-icons/bi";
 import { auth, db } from "./firebase";
 import {
   collection,
@@ -29,12 +42,12 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   const messagesEndRef = useRef(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [newMessage, setNewMessage] = useState("");
-  const [dropdownMessageId, setDropdownMessageId] = useState(null);
+  const [showDropdown, setShowDropdown] = useState(null);
+  const target = useRef(null);
 
   // Authentication state
   useEffect(() => {
     const unsubscribeAuth = auth.onAuthStateChanged((user) => {
-      console.log("Auth state:", user);
       setCurrentUser(user);
       setLoading(false);
     });
@@ -159,7 +172,7 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   const handleEdit = async (id) => {
     if (newMessage.trim() === "") return;
     try {
-      await updateDoc(doc(db, "chats", id)), { text: newMessage };
+      await updateDoc(doc(db, "chats", id), { text: newMessage });
       setEditingMessageId(null);
       setNewMessage("");
     } catch (error) {
@@ -173,219 +186,336 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="d-flex justify-content-center align-items-center h-100">
+        <Spinner animation="border" variant="primary" />
+      </div>
+    );
   }
 
   if (!currentUser) {
-    return <div>Please log in to view chats.</div>;
+    return (
+      <Card className="text-center p-4">
+        <Card.Body>
+          <Card.Text>Please log in to view chats.</Card.Text>
+        </Card.Body>
+      </Card>
+    );
   }
 
   return (
-    <div className="flex-3 flex flex-col h-full text-white shadow-md relative background">
+    <Container fluid className="chat-container p-0 d-flex flex-column h-100">
       {/* Header */}
-      <div className="bg-[#24013C] flex items-center mb-3 p-3">
-        <button className="md:hidden text-white mr-3" onClick={() => setSelectedChat(null)}>
-          <FaArrowLeft size={25} />
-        </button>
-        <img
-          src={selectedChat?.photoURL || selectedChat?.profilePic || defaultProfile}
-          alt="User Profile"
-          className="w-12 h-12 rounded-full object-cover mr-3"
-          title="User Profile"
-        />
-        <div className="flex flex-col">
-          <span className="font-semibold text-lg">{selectedChat?.name || "Anonymous"}</span>
-        </div>
-      </div>
+      <Card className="chat-header rounded-0">
+        <Card.Body className="d-flex align-items-center p-3">
+          <Button 
+            variant="link" 
+            className="d-md-none text-white me-2 p-0"
+            onClick={() => setSelectedChat(null)}
+          >
+            <FaArrowLeft size={20} />
+          </Button>
+          <Image
+            src={selectedChat?.photoURL || selectedChat?.profilePic || defaultProfile}
+            alt="User Profile"
+            roundedCircle
+            width={40}
+            height={40}
+            className="me-3 object-fit-cover"
+          />
+          <div>
+            <h6 className="mb-0 fw-bold text-white">{selectedChat?.name || "Anonymous"}</h6>
+            <small className="text-white-50">{selectedChat?.status || "Online"}</small>
+          </div>
+        </Card.Body>
+      </Card>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto mb-2 scroll">
-        <div className="space-y-2">
-          {chats.length === 0 && (
-            <div className="flex flex-col items-center">
-              <p className="text-center py-2 px-2 text-xl font-bold bg-white text-[#24013C] rounded-lg">
-                No messages yet. Say hello!
-              </p>
+      {/* Messages Container */}
+      <div className="messages-container flex-grow-1 p-3">
+        {chats.length === 0 ? (
+          <div className="d-flex justify-content-center align-items-center h-100">
+            <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+              <p className="text-muted mb-1">Start the conversation</p>
+              <p className="text-muted small">No messages yet. Say hello!</p>
             </div>
-          )}
+          </div>
+        ) : (
+          <div className="messages-list">
+            {chats.map((chat) => {
+              const isSent = chat.userId === currentUser?.uid;
+              const formattedTime = chat.timestamp?.seconds
+                ? new Date(chat.timestamp.seconds * 1000).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "Sending...";
 
-          {chats.map((chat) => {
-            const isSent = chat.userId === currentUser?.uid;
-            const formattedTime = chat.timestamp?.seconds
-              ? new Date(chat.timestamp.seconds * 1000).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "Sending...";
-
-            return (
-              <div
-                key={chat.id}
-                className={`flex ${isSent ? "justify-end" : "justify-start"} mx-2`}
-              >
-                {!isSent && (
-                  <img
-                    src={selectedChat?.photoURL || selectedChat?.profilePic || defaultProfile}
-                    alt="User Profile"
-                    className="w-8 h-8 rounded-full object-cover mr-2"
-                  />
-                )}
-
-                <div
-                  className={`relative max-w-[15rem] lg:max-w-[30rem] px-3 py-2 rounded-lg shadow-lg flex flex-col ${
-                    isSent ? "bg-[#5f029c] text-white" : "bg-[#24013C] text-white"
-                  }`}
+              return (
+                <div 
+                  key={chat.id} 
+                  className={`message-wrapper d-flex mb-3 ${isSent ? 'justify-content-end' : 'justify-content-start'}`}
                 >
-                  {chat.replyTo && (
-                    <div className="text-xs mb-1 p-1 bg-black/20 rounded border-l-2 border-white/50 pl-2">
-                      <div className="font-semibold">{chat.replyTo.user}</div>
-                      <div className="truncate">{chat.replyTo.text}</div>
-                    </div>
+                  {!isSent && (
+                    <Image
+                      src={selectedChat?.photoURL || selectedChat?.profilePic || defaultProfile}
+                      alt="Profile"
+                      roundedCircle
+                      width={36}
+                      height={36}
+                      className="me-2 align-self-end"
+                    />
                   )}
+                  
+                  <div className="position-relative">
+                    <Card 
+                      className={`message-card ${isSent ? 'sent' : 'received'}`}
+                      onMouseEnter={() => setShowDropdown(chat.id)}
+                      onMouseLeave={() => setShowDropdown(null)}
+                    >
+                      <Card.Body className="p-2">
+                        {/* Reply Preview */}
+                        {chat.replyTo && (
+                          <Card className={`mb-2 ${isSent ? 'bg-primary text-white' : 'bg-light'}`}>
+                            <Card.Body className="p-2">
+                              <small className="fw-bold">{chat.replyTo.user}</small>
+                              <p className="mb-0 small">{chat.replyTo.text}</p>
+                            </Card.Body>
+                          </Card>
+                        )}
 
-                  <div className="flex items-start justify-between">
-                    {editingMessageId === chat.id ? (
-                      <input
-                        type="text"
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        className="w-full mt-1 bg-white text-black text-sm p-1 rounded-md"
-                        autoFocus
-                      />
-                    ) : (
-                      <span className="text-sm font-light">{chat.text}</span>
-                    )}
+                        {/* Message Content */}
+                        {editingMessageId === chat.id ? (
+                          <Form.Control
+                            as="textarea"
+                            value={newMessage}
+                            onChange={(e) => setNewMessage(e.target.value)}
+                            className="border-0 shadow-none p-0 mb-1"
+                            autoFocus
+                          />
+                        ) : (
+                          <p className="mb-1">{chat.text}</p>
+                        )}
 
-                    <div className="relative ml-2">
-                      <button
-                        onClick={() =>
-                          setDropdownMessageId(dropdownMessageId === chat.id ? null : chat.id)
-                        }
-                        className="text-white/50 hover:text-white focus:outline-none"
+                        {/* Message Metadata */}
+                        <div className="d-flex justify-content-between align-items-center">
+                          <small className={`text-muted ${isSent ? 'text-white-50' : 'text-muted'}`}>
+                            {formattedTime}
+                          </small>
+                          {isSent && (
+                            <span className="ms-2">
+                              {chat.read ? (
+                                <BiCheckDouble className="text-white" />
+                              ) : chat.timestamp?.seconds ? (
+                                <BiCheckDouble className="text-white-50" />
+                              ) : (
+                                <BiCheck className="text-white-50" />
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </Card.Body>
+                    </Card>
+
+                    {/* Message Actions */}
+                    {showDropdown === chat.id && (
+                      <div 
+                        ref={target}
+                        className={`message-actions ${isSent ? 'sent-actions' : 'received-actions'}`}
                       >
-                        <BiDotsVerticalRounded size={20} />
-                      </button>
-
-                      {dropdownMessageId === chat.id && (
-                        <div
-                          className={`absolute w-auto ${
-                            isSent ? "right-0" : "left-[2.5rem]"
-                          } mt-1 bg-[#233138] rounded-md shadow-lg z-10 border border-gray-700`}
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="text-muted p-0 me-1"
+                          onClick={() => {
+                            setReplyToMessage(chat);
+                            setShowDropdown(null);
+                          }}
                         >
-                          <button
-                            onClick={() => {
-                              setReplyToMessage(chat);
-                              setDropdownMessageId(null);
-                            }}
-                            className="block w-full text-left px-2 py-1 text-xs hover:bg-[#182229]"
-                          >
-                            Reply
-                          </button>
-                          {isSent && editingMessageId === chat.id ? (
-                            <button
-                              onClick={() => handleEdit(chat.id)}
-                              className="block w-full text-left px-2 py-1 text-xs hover:bg-[#182229]"
-                            >
-                              Save
-                            </button>
-                          ) : (
-                            isSent && (
+                          <FaReply size={14} />
+                        </Button>
+                        
+                        {isSent && (
+                          <>
+                            {editingMessageId === chat.id ? (
+                              <Button
+                                variant="link"
+                                size="sm"
+                                className="text-success p-0 me-1"
+                                onClick={() => handleEdit(chat.id)}
+                              >
+                                Save
+                              </Button>
+                            ) : (
                               <>
-                                <button
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="text-muted p-0 me-1"
                                   onClick={() => {
                                     setEditingMessageId(chat.id);
                                     setNewMessage(chat.text);
-                                    setDropdownMessageId(null);
+                                    setShowDropdown(null);
                                   }}
-                                  className="block w-full text-left px-2 py-1 text-xs hover:bg-[#182229]"
                                 >
-                                  Edit
-                                </button>
-                                <button
+                                  <FaEdit size={14} />
+                                </Button>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="text-danger p-0"
                                   onClick={() => {
                                     handleDelete(chat.id);
-                                    setDropdownMessageId(null);
+                                    setShowDropdown(null);
                                   }}
-                                  className="block w-full text-left px-2 py-1 text-xs text-red-400 hover:bg-[#182229]"
                                 >
-                                  Delete
-                                </button>
+                                  <FaTrash size={14} />
+                                </Button>
                               </>
-                            )
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-end mt-1 space-x-1">
-                    <span className="text-xs font-thin">{formattedTime}</span>
-                    {isSent && (
-                      <span className="text-xs">
-                        {chat.read ? (
-                          <BiCheckDouble color="#4fc3f7" />
-                        ) : chat.timestamp?.seconds ? (
-                          <BiCheckDouble />
-                        ) : (
-                          <BiCheck />
+                            )}
+                          </>
                         )}
-                      </span>
+                      </div>
                     )}
                   </div>
                 </div>
-              </div>
-            );
-          })}
-
-          <div ref={messagesEndRef}></div>
-        </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
       </div>
 
       {/* Reply Preview */}
       {replyToMessage && (
-        <div className="mx-3 mb-2 px-3 py-2 rounded-lg bg-[#24013C] text-white shadow">
-          <div className="flex justify-between items-center text-sm">
-            <div>
-              <span className="font-semibold">Replying to {replyToMessage.user}:</span>{" "}
-              <span>{replyToMessage.text}</span>
+        <Card className="mx-3 mb-2 bg-light border-primary">
+          <Card.Body className="p-2">
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <small className="fw-bold">Replying to {replyToMessage.user}:</small>{" "}
+                <small>{replyToMessage.text}</small>
+              </div>
+              <Button
+                variant="link"
+                className="text-danger p-0 ms-3"
+                size="sm"
+                onClick={() => setReplyToMessage(null)}
+              >
+                Cancel
+              </Button>
             </div>
-            <button
-              onClick={() => setReplyToMessage(null)}
-              className="ml-3 text-red-400 text-xs"
+          </Card.Body>
+        </Card>
+      )}
+
+      {/* Input Area */}
+      <Card className="mx-3 mb-3 border-0 shadow-sm mt-4">
+        <Card.Body className="p-2 ">
+          <InputGroup>
+            <Button 
+              variant="link" 
+              className="text-muted"
+              onClick={() => setShowPicker(!showPicker)}
             >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+              <FaSmile size={20} />
+            </Button>
+            
+            <Form.Control
+              as="textarea"
+              rows={1}
+              placeholder="Type a message..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+              className="border-0 shadow-none"
+              style={{ resize: 'none' }}
+            />
+            
+            <Button 
+              variant="link" 
+              className="text-primary"
+              disabled={!message.trim()}
+              onClick={handleSendMessage}
+            >
+              <FaPaperPlane size={20} />
+            </Button>
+          </InputGroup>
+        </Card.Body>
+      </Card>
 
-      {/* Input */}
-      <div className="flex items-center border-2 p-3 mb-2 mx-3 rounded-lg bg-transparent">
-        <FaSmile
-          className="text-white mr-3 cursor-pointer"
-          onClick={() => setShowPicker(!showPicker)}
-        />
-        <input
-          type="text"
-          placeholder="Type a message"
-          className="resize-none bg-transparent w-full outline-none text-sm"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-        />
-        <FaPaperPlane
-          className="text-white ml-3 cursor-pointer"
-          onClick={handleSendMessage}
-          size={20}
-        />
-      </div>
-
+      {/* Emoji Picker */}
       {showPicker && (
-        <div className="absolute bottom-16 left-2 z-50">
-          <EmojiPicker onEmojiClick={handleEmojiSelect} theme="dark" height={400} width={300} />
+        <div className="emoji-picker">
+          <EmojiPicker 
+            onEmojiClick={handleEmojiSelect} 
+            theme="light" 
+            height={350} 
+            width="100%"
+            previewConfig={{ showPreview: false }}
+          />
         </div>
       )}
-    </div>
+
+      {/* Custom CSS */}
+      <style >{`
+        .chat-container {
+          background: linear-gradient(135deg,rgb(101, 64, 187),rgb(94, 150, 219)); /* Blue gradient */
+        }
+
+        
+        .chat-header {
+          background: linear-gradient(135deg, #a238bf, #6a1b9a); /* Purple gradient */
+          color: white;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        
+        .messages-container {
+          overflow-y: auto;
+          background: linear-gradient(135deg,rgb(63, 55, 65),rgb(150, 102, 180));
+          background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z' fill='%239C92AC' fill-opacity='0.1' fill-rule='evenodd'/%3E%3C/svg%3E");
+        }
+        
+        .message-card {
+          border-radius: 18px;
+          border: none;
+          box-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+        
+        .message-card.sent {
+          background-color:rgb(67, 81, 96);
+          color: white;
+          border-bottom-right-radius: 4px;
+        }
+        
+        .message-card.received {
+          background-color: white;
+          color: #333;
+          border-bottom-left-radius: 4px;
+          width: 100px;
+        }
+        
+        
+        
+        .sent-actions {
+          left: -10px;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        
+        .received-actions {
+          right: -10px;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        
+        .emoji-picker {
+          position: absolute;
+          bottom: 70px;
+          right: 20px;
+          z-index: 10;
+        }
+      `}</style>
+    </Container>
   );
 };
 
