@@ -1,0 +1,142 @@
+.signup-container {
+    background: linear-gradient(135deg, #24013C 0%, #000000 100%);
+    display: flex;
+    align-items: center;
+    padding: 20px 0;
+  }
+  
+  .signup-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .card-title {
+    font-weight: 700;
+    color: #fff;
+    font-size: 2rem;
+  }
+  
+  .profile-pic-container {
+    width: 120px;
+    height: 120px;
+    margin-bottom: 20px;
+  }
+  
+  .profile-pic {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .upload-btn {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    background: #570191;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 2px solid #fff;
+    transition: all 0.3s ease;
+  }
+  
+  .upload-btn:hover {
+    background: #7a00d0;
+  }
+  
+  .upload-icon {
+    color: #fff;
+    font-size: 1rem;
+  }
+  
+  .form-control {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 12px 15px;
+    border-radius: 8px;
+  }
+  
+  .form-control:focus {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: #570191;
+    color: #fff;
+    box-shadow: 0 0 0 0.25rem rgba(87, 1, 145, 0.25);
+  }
+  
+  .form-label {
+    color: #fff;
+    font-weight: 500;
+  }
+  
+  .btn-primary {
+    background-color: #570191;
+    border: none;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-primary:hover {
+    background-color: #7a00d0;
+  }
+  
+  .btn-outline-danger {
+    color: #fff;
+    border-color: #db4437;
+    transition: all 0.3s ease;
+  }
+  
+  .btn-outline-danger:hover {
+    background-color: #db4437;
+    border-color: #db4437;
+  }
+  
+  .divider {
+    position: relative;
+    color: rgba(255, 255, 255, 0.5);
+    display: inline-block;
+    padding: 0 10px;
+  }
+  
+  .divider::before,
+  .divider::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 100px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .divider::before {
+    right: 100%;
+  }
+  
+  .divider::after {
+    left: 100%;
+  }
+  
+  .text-muted {
+    color: rgba(255, 255, 255, 0.6) !important;
+  }
+  
+  a {
+    color: #b57edc;
+    transition: color 0.3s ease;
+  }
+  
+  a:hover {
+    color: #d9b3ff;
+  }

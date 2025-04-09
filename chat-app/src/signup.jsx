@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { auth, googleProvider, db } from "./firebase.js";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import { FaEye, FaEyeSlash, FaGoogle, FaUser } from "react-icons/fa";
 import { createUserWithEmailAndPassword, signInWithPopup, updateProfile } from "firebase/auth";
 import { doc, setDoc } from "firebase/firestore";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
-import "./App.css";
+import "bootstrap/dist/css/bootstrap.min.css";
 
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dqvnagonh/image/upload";
 const CLOUDINARY_UPLOAD_PRESET = "profile-pictures";
@@ -15,12 +15,142 @@ const CLOUDINARY_UPLOAD_PRESET = "profile-pictures";
 const SignUp = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false);
   const [userName, setUserName] = useState("");
-  const [profilePic, setProfilePic] = useState(null); // Holds the final URL
-  const [previewPic, setPreviewPic] = useState(null); // Temporary preview
+  const [profilePic, setProfilePic] = useState(null);
+  const [previewPic, setPreviewPic] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+
+  // Styles object
+  const styles = {
+    signupContainer: {
+      background: 'linear-gradient(135deg, #24013C 0%, #000000 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      minHeight: '100vh',
+      padding: '20px 0'
+    },
+    signupCard: {
+      border: 'none',
+      borderRadius: '15px',
+      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.2)',
+      overflow: 'hidden',
+      background: 'rgba(255, 255, 255, 0.05)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(255, 255, 255, 0.1)'
+    },
+    cardTitle: {
+      fontWeight: '700',
+      color: '#fff',
+      fontSize: '2rem'
+    },
+    profilePicContainer: {
+      width: '120px',
+      height: '120px',
+      marginBottom: '20px',
+      position: 'relative',
+      marginLeft: 'auto',
+      marginRight: 'auto'
+    },
+    profilePic: {
+      width: '100%',
+      height: '100%',
+      objectFit: 'cover',
+      borderRadius: '50%',
+      border: '3px solid rgba(255, 255, 255, 0.2)'
+    },
+    uploadBtn: {
+      position: 'absolute',
+      bottom: '0',
+      right: '0',
+      background: '#570191',
+      width: '40px',
+      height: '40px',
+      borderRadius: '50%',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      cursor: 'pointer',
+      border: '2px solid #fff',
+      transition: 'all 0.3s ease'
+    },
+    uploadBtnHover: {
+      background: '#7a00d0'
+    },
+    uploadIcon: {
+      color: '#fff',
+      fontSize: '1rem'
+    },
+    formControl: {
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+      color: '#fff',
+      padding: '12px 15px',
+      borderRadius: '8px'
+    },
+    formControlFocus: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderColor: '#570191',
+      color: '#fff',
+      boxShadow: '0 0 0 0.25rem rgba(87, 1, 145, 0.25)'
+    },
+    formLabel: {
+      color: '#fff',
+      fontWeight: '500'
+    },
+    btnPrimary: {
+      backgroundColor: '#570191',
+      border: 'none',
+      padding: '12px',
+      borderRadius: '8px',
+      fontWeight: '600',
+      transition: 'all 0.3s ease'
+    },
+    btnPrimaryHover: {
+      backgroundColor: '#7a00d0'
+    },
+    btnOutlineDanger: {
+      color: '#fff',
+      borderColor: '#db4437',
+      transition: 'all 0.3s ease'
+    },
+    btnOutlineDangerHover: {
+      backgroundColor: '#db4437',
+      borderColor: '#db4437'
+    },
+    divider: {
+      position: 'relative',
+      color: 'rgba(255, 255, 255, 0.5)',
+      display: 'inline-block',
+      padding: '0 10px'
+    },
+    dividerLine: {
+      content: '""',
+      position: 'absolute',
+      top: '50%',
+      width: '100px',
+      height: '1px',
+      background: 'rgba(255, 255, 255, 0.2)'
+    },
+    textMuted: {
+      color: 'rgba(255, 255, 255, 0.6) !important'
+    },
+    link: {
+      color: '#b57edc',
+      transition: 'color 0.3s ease',
+      textDecoration: 'none',
+      cursor: 'pointer'
+    },
+    linkHover: {
+      color: '#d9b3ff'
+    },
+    passwordToggleBtn: {
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+      borderColor: 'rgba(255, 255, 255, 0.2)',
+      color: '#fff'
+    }
+  };
 
   const handleNavigate = () => {
     navigate("/login");
@@ -65,7 +195,7 @@ const SignUp = () => {
 
     if (!imageUrl && previewPic) {
         imageUrl = await handleImageUpload(previewPic);
-        setProfilePic(imageUrl); // Ensure profilePic is updated
+        setProfilePic(imageUrl);
     }
 
     if (!imageUrl) {
@@ -94,24 +224,22 @@ const SignUp = () => {
     } finally {
         setLoading(false);
     }
-};
-
+  };
 
   const handleGoogleSignUp = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
   
-      // Only update Firestore if the user document doesn't exist
       await setDoc(
         doc(db, "users", user.uid),
         {
           uid: user.uid,
           name: user.displayName,
           email: user.email,
-          profilePic: user.photoURL, // Ensure this field is updated correctly
+          profilePic: user.photoURL,
         },
-        { merge: true } // Prevent overwriting existing data
+        { merge: true }
       );
   
       toast.success("Signed up successfully!");
@@ -122,84 +250,158 @@ const SignUp = () => {
     }
   };
   
-
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setPreviewPic(file); // Set preview before upload
-      setProfilePic(null); // Reset final URL to avoid confusion
+      setPreviewPic(file);
+      setProfilePic(null);
     }
   };
 
   return (
-    <div className="bg-gradient-to-b from-[#24013C] via-[#24013C] to-[#000000] flex flex-col items-center justify-center h-screen font-roboto">
+    <div style={styles.signupContainer}>
       <ToastContainer position="top-right" autoClose={2000} />
-      <div className="text-white px-6 rounded-lg shadow-3xl sm:w-64 md:w-96 bg-gradient-to-b from-[#1d0130] via-[#24013C] to-[#570191]">
-        <h2 className="text-2xl font-semibold text-center my-3">Sign Up</h2>
-        
-         <form onSubmit={handleSignUp} className="flex flex-col gap-4 items-center ">
-          <div className="flex flex-col items-center gap-3">
-            <img
-              src={profilePic || (previewPic && URL.createObjectURL(previewPic)) || "/default-avatar.png"}
-              alt=""
-              className="mt-2 w-36 h-36 rounded-full object-cover border-2"
-            />
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="bg-blue-600 p-2 rounded-lg w-full py-2 outline-0 cursor-pointer"
-            />
-          </div>
-          <input
-            type="text"
-            placeholder="Username"
-            value={userName}
-            onChange={(e) => setUserName(e.target.value)}
-            className="border-2 p-2 rounded w-full outline-0 cursor-pointer"
-            required
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border-2 p-2 rounded w-full outline-0 cursor-pointer"
-            required
-          />
-          <div className="relative w-full">
-            <input
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border-2 p-2 rounded w-full outline-0 cursor-pointer pr-10"
-              required
-            />
-            <span
-              onClick={togglePassword}
-              className="absolute right-3 top-3 cursor-pointer text-gray-600"
-            >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </span>
-          </div>
+      <div className="container">
+        <div className="row justify-content-center">
+          <div className="col-md-8 col-lg-6">
+            <div className="card" style={styles.signupCard}>
+              <div className="card-body p-4 p-md-5">
+                <div className="text-center mb-4">
+                  <h2 style={styles.cardTitle}>Create Your Account</h2>
+                  <p style={styles.textMuted}>Join our community today</p>
+                </div>
+                
+                <form onSubmit={handleSignUp}>
+                  <div className="text-center mb-4">
+                    <div style={styles.profilePicContainer}>
+                      <img
+                        src={profilePic || (previewPic && URL.createObjectURL(previewPic)) || "/default-avatar.png"}
+                        alt="Profile"
+                        style={styles.profilePic}
+                      />
+                      <label htmlFor="profile-upload" style={styles.uploadBtn}>
+                        <FaUser style={styles.uploadIcon} />
+                        <input
+                          id="profile-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileChange}
+                          className="d-none"
+                        />
+                      </label>
+                    </div>
+                  </div>
 
-          { loading ? <p className="bg-gray-800 text-white py-2 rounded cursor-not-allowed w-full text-center">Signing Up....</p> :
-          <button type="submit" className="bg-blue-500 text-white py-2 rounded hover:bg-blue-700 cursor-pointer w-full">
-            Sign Up
-          </button> }
-        </form> 
+                  <div className="mb-3">
+                    <label htmlFor="username" style={styles.formLabel}>Username</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      id="username"
+                      placeholder="Enter username"
+                      value={userName}
+                      onChange={(e) => setUserName(e.target.value)}
+                      required
+                      style={styles.formControl}
+                    />
+                  </div>
 
-        <hr className="my-2" />
-        <button
-          onClick={handleGoogleSignUp}
-          className="bg-[#24013C] text-white py-2 rounded w-full hover:bg-[#12011d] cursor-pointer"
-        >
-          Sign Up with Google
-        </button>
-        <p className="font-normal hover:underline flex flex-col items-end my-3 text-white cursor-pointer" onClick={handleNavigate}>
-          Already have an account? Login
-        </p>
+                  <div className="mb-3">
+                    <label htmlFor="email" style={styles.formLabel}>Email address</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      id="email"
+                      placeholder="Enter email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      style={styles.formControl}
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label htmlFor="password" style={styles.formLabel}>Password</label>
+                    <div className="input-group">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        className="form-control"
+                        id="password"
+                        placeholder="Enter password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        style={styles.formControl}
+                      />
+                      <button
+                        className="btn btn-outline-secondary"
+                        type="button"
+                        onClick={togglePassword}
+                        style={styles.passwordToggleBtn}
+                      >
+                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn btn-primary w-100 mb-3"
+                    disabled={loading}
+                    style={styles.btnPrimary}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = styles.btnPrimaryHover.backgroundColor}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = styles.btnPrimary.backgroundColor}
+                  >
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Signing Up...
+                      </>
+                    ) : (
+                      "Sign Up"
+                    )}
+                  </button>
+
+                  <div className="text-center mb-3">
+                    <span style={styles.divider}>OR</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger w-100 mb-3"
+                    onClick={handleGoogleSignUp}
+                    style={styles.btnOutlineDanger}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = styles.btnOutlineDangerHover.backgroundColor;
+                      e.currentTarget.style.borderColor = styles.btnOutlineDangerHover.borderColor;
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      e.currentTarget.style.borderColor = styles.btnOutlineDanger.borderColor;
+                    }}
+                  >
+                    <FaGoogle className="me-2" />
+                    Sign Up with Google
+                  </button>
+
+                  <div className="text-center mt-3">
+                    <p className="mb-0">
+                      Already have an account?{" "}
+                      <span 
+                        style={styles.link}
+                        onClick={handleNavigate}
+                        onMouseOver={(e) => e.currentTarget.style.color = styles.linkHover.color}
+                        onMouseOut={(e) => e.currentTarget.style.color = styles.link.color}
+                      >
+                        Login
+                      </span>
+                    </p>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
