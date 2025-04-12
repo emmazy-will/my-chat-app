@@ -36,7 +36,8 @@ import {
   FaStop,
   FaPlay,
   FaExclamationCircle,
-  FaTimes
+  FaTimes,
+  FaVideo as FaVideoCall
 } from "react-icons/fa";
 import { BiCheck, BiCheckDouble } from "react-icons/bi";
 import { auth, db } from "./firebase";
@@ -88,9 +89,12 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   const [showIncomingCallModal, setShowIncomingCallModal] = useState(false);
   const [callStatus, setCallStatus] = useState('');
   const [callerName, setCallerName] = useState('');
+  const [callDuration, setCallDuration] = useState(0);
+  const [callStartTime, setCallStartTime] = useState(null);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
+  const callDurationIntervalRef = useRef(null);
 
   // Theme and settings
   const [theme, setTheme] = useState('default');
@@ -252,6 +256,7 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
         mediaRecorderRef.current.stop();
       }
       clearInterval(recordingIntervalRef.current);
+      clearInterval(callDurationIntervalRef.current);
       
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
@@ -322,6 +327,7 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
             .then(() => {
               setCallStatus('in-progress');
               setVideoCallActive(true);
+              startCallTimer();
             })
             .catch(err => console.error("Set remote description error:", err));
           
@@ -404,6 +410,7 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
       setVideoCallActive(true);
       setShowIncomingCallModal(false);
       setCallStatus('in-progress');
+      startCallTimer();
       await deleteDoc(doc(db, "calls", currentUser.uid));
 
     } catch (error) {
@@ -428,7 +435,40 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
     setIncomingCall(null);
   };
 
+  const startCallTimer = () => {
+    setCallStartTime(Date.now());
+    setCallDuration(0);
+    callDurationIntervalRef.current = setInterval(() => {
+      setCallDuration(prev => prev + 1);
+    }, 1000);
+  };
+
   const endVideoCall = async () => {
+    clearInterval(callDurationIntervalRef.current);
+    
+    // Send call log if call was active
+    if (callStatus === 'in-progress' && selectedChat && currentUser) {
+      const chatId = currentUser.uid < selectedChat.id 
+        ? `${currentUser.uid}_${selectedChat.id}` 
+        : `${selectedChat.id}_${currentUser.uid}`;
+      
+      try {
+        await addDoc(collection(db, "chats"), {
+          chatId,
+          userId: currentUser.uid,
+          user: currentUser.displayName || "Anonymous",
+          receiverId: selectedChat.id,
+          text: "Video call ended",
+          isVideoCall: true,
+          callDuration: callDuration,
+          timestamp: serverTimestamp(),
+          read: false,
+        });
+      } catch (error) {
+        console.error("Error saving call log:", error);
+      }
+    }
+
     if (localStream) localStream.getTracks().forEach(track => track.stop());
     if (remoteStream) remoteStream.getTracks().forEach(track => track.stop());
     if (peerConnectionRef.current) peerConnectionRef.current.close();
@@ -440,6 +480,8 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
     setLocalStream(null);
     setRemoteStream(null);
     setCallStatus('');
+    setCallDuration(0);
+    setCallStartTime(null);
     peerConnectionRef.current = null;
   };
 
@@ -455,6 +497,12 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
 
     return () => clearTimeout(timeout);
   }, [callStatus]);
+
+  const formatCallDuration = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
 
   // Audio recording functions
   const startRecording = async () => {
@@ -770,7 +818,12 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
       {/* Video Call Modal */}
       <Modal show={videoCallActive} fullscreen onHide={endVideoCall}>
         <Modal.Header closeButton>
-          <Modal.Title>Video Call with {selectedChat?.name}</Modal.Title>
+          <Modal.Title>
+            Video Call with {selectedChat?.name}
+            {callDuration > 0 && (
+              <span className="ms-2 text-muted">{formatCallDuration(callDuration)}</span>
+            )}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body className="d-flex flex-column">
           <div className="flex-grow-1 position-relative">
@@ -982,7 +1035,7 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
                   )}
 
                   <div className="position-relative">
-                    <Card className={`message-card ${isSent ? 'sent' : 'received'}`}>
+                    <Card className={`message-card ${isSent ? 'sent' : 'received'} ${chat.isVideoCall ? 'video-call' : ''}`}>
                       <Card.Body className="p-2">
                         
                         {/* Reply Preview */}
@@ -1031,6 +1084,18 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
                                   onEnded={() => setIsPlayingAudio(false)}
                                   hidden
                                 />
+                              </div>
+                            ) : chat.isVideoCall ? (
+                              <div className="d-flex align-items-center video-call-message">
+                                <FaVideoCall className="me-2" size={18} />
+                                <div>
+                                  <p className="mb-0">{chat.text}</p>
+                                  {chat.callDuration && (
+                                    <small className="text-muted">
+                                      Duration: {formatCallDuration(chat.callDuration)}
+                                    </small>
+                                  )}
+                                </div>
                               </div>
                             ) : (
                               <p className="mb-1">{chat.text}</p>
@@ -1311,6 +1376,11 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
           border-bottom-left-radius: 4px;
         }
         
+        .message-card.video-call {
+          background: rgba(0, 0, 0, 0.1) !important;
+          border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
         .message-actions {
           position: absolute;
           display: flex;
@@ -1343,6 +1413,14 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
           padding: 8px;
           background: rgba(0,0,0,0.05);
           border-radius: 8px;
+        }
+
+        .video-call-message {
+          padding: 8px;
+          background: rgba(0,0,0,0.05);
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
         }
 
         .incoming-call-modal {
