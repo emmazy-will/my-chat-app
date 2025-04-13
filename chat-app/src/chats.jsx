@@ -1,68 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  Container, 
-  Row, 
-  Col, 
-  Image, 
-  Form, 
-  Button, 
-  Card, 
-  Dropdown,
-  InputGroup,
-  Badge,
-  Spinner,
-  Overlay,
-  Modal,
-  ProgressBar,
-  Alert
+  Container, Image, Form, Button, Card, Dropdown,
+  InputGroup, Spinner, Modal, ProgressBar, Alert
 } from "react-bootstrap";
 import EmojiPicker from "emoji-picker-react";
 import defaultProfile from "./assets/me.jpg";
 import { 
-  FaSmile, 
-  FaPaperPlane, 
-  FaArrowLeft, 
-  FaReply, 
-  FaEdit, 
-  FaTrash,
-  FaPhone,
-  FaVideo,
-  FaEllipsisV,
-  FaCopy,
-  FaList,
-  FaImage,
-  FaPalette,
-  FaMicrophone,
-  FaStop,
-  FaPlay,
-  FaExclamationCircle,
-  FaTimes,
-  FaVideo as FaVideoCall
+  FaSmile, FaPaperPlane, FaArrowLeft, FaReply, FaEdit, FaTrash,
+  FaPhone, FaVideo, FaEllipsisV, FaCopy, FaList, FaImage, 
+  FaPalette, FaMicrophone, FaStop, FaPlay, FaExclamationCircle,
+  FaTimes, FaVideo as FaVideoCall
 } from "react-icons/fa";
 import { BiCheck, BiCheckDouble } from "react-icons/bi";
 import { auth, db } from "./firebase";
 import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  doc,
-  deleteDoc,
-  updateDoc,
-  getDocs,
-  setDoc
+  collection, addDoc, serverTimestamp, query, where,
+  orderBy, onSnapshot, doc, deleteDoc, updateDoc,
+  getDocs, setDoc
 } from "firebase/firestore";
 import { Cloudinary } from "@cloudinary/url-gen";
 
-// Initialize Cloudinary
-const cld = new Cloudinary({
-  cloud: {
-    cloudName: 'dqvnagonh'
-  }
-});
+const cld = new Cloudinary({ cloud: { cloudName: 'dqvnagonh' } });
 
 const WholeChats = ({ selectedChat, setSelectedChat }) => {
   // States for messaging
@@ -73,6 +31,7 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   const [chats, setChats] = useState([]);
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [newMessage, setNewMessage] = useState("");
   const [showDropdown, setShowDropdown] = useState(null);
@@ -98,7 +57,6 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
 
   // Theme and settings
   const [theme, setTheme] = useState('default');
-
   const themes = {
     default: {
       primary: 'linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%)',
@@ -115,44 +73,11 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
       accent: '#03DAC6',
       bubbleSent: 'linear-gradient(135deg, #BB86FC 0%, #7F39FB 100%)',
       bubbleReceived: 'linear-gradient(135deg,rgb(103, 55, 149) 0%,rgb(19, 126, 180) 100%)'
-    },
-    light: {
-      primary: 'linear-gradient(135deg, #1976D2 0%, #0D47A1 100%)',
-      background: 'linear-gradient(135deg,rgb(156, 199, 116) 0%,rgb(47, 84, 99) 100%)',
-      text: '#212529',
-      accent: '#FF4081',
-      bubbleSent: 'linear-gradient(135deg, #1976D2 0%, #0D47A1 100%)',
-      bubbleReceived: 'linear-gradient(135deg, #FFFFFF 0%, #EEEEEE 100%)'
-    },
-    blue: {
-      primary: 'linear-gradient(135deg, #1565C0 0%, #0D47A1 100%)',
-      background: 'linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%)',
-      text: '#0D47A1',
-      accent: '#82B1FF',
-      bubbleSent: 'linear-gradient(135deg, #1565C0 0%, #0D47A1 100%)',
-      bubbleReceived: 'linear-gradient(135deg, #FFFFFF 0%, #E3F2FD 100%)'
-    },
-    sunset: {
-      primary: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
-      background: 'linear-gradient(135deg, #2C3E50 0%, #4CA1AF 100%)',
-      text: '#FFFFFF',
-      accent: '#F9D423',
-      bubbleSent: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
-      bubbleReceived: 'linear-gradient(135deg, #4CA1AF 0%, #2C3E50 100%)'
-    },
-    modern: {
-      primary: 'linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%)',
-      background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-      text: '#2d3748',
-      accent: '#ff6b6b',
-      bubbleSent: 'linear-gradient(135deg, #6e45e2 0%, #88d3ce 100%)',
-      bubbleReceived: 'linear-gradient(135deg, #FFFFFF 0%, #f5f7fa 100%)'
     }
   };
-
   const currentTheme = themes[theme];
 
-  // Audio recording
+  // Audio recording states
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState(null);
   const [audioUrl, setAudioUrl] = useState("");
@@ -163,6 +88,25 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   const audioRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const recordingIntervalRef = useRef(null);
+
+  // Helper functions for ICE candidate conversion
+  const iceCandidateToObject = (candidate) => {
+    return {
+      candidate: candidate.candidate,
+      sdpMid: candidate.sdpMid,
+      sdpMLineIndex: candidate.sdpMLineIndex,
+      usernameFragment: candidate.usernameFragment,
+    };
+  };
+
+  const objectToIceCandidate = (data) => {
+    return new RTCIceCandidate({
+      candidate: data.candidate,
+      sdpMid: data.sdpMid,
+      sdpMLineIndex: data.sdpMLineIndex,
+      usernameFragment: data.usernameFragment,
+    });
+  };
 
   // Authentication state
   useEffect(() => {
@@ -180,10 +124,9 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
       return;
     }
 
-    const chatId =
-      currentUser.uid < selectedChat.id
-        ? `${currentUser.uid}_${selectedChat.id}`
-        : `${selectedChat.id}_${currentUser.uid}`;
+    const chatId = currentUser.uid < selectedChat.id
+      ? `${currentUser.uid}_${selectedChat.id}`
+      : `${selectedChat.id}_${currentUser.uid}`;
 
     const markMessagesAsRead = async () => {
       const unreadQuery = query(
@@ -268,7 +211,6 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   }, [localStream, remoteStream]);
 
   // VIDEO CALL FUNCTIONS
-
   const startVideoCall = async () => {
     if (!selectedChat || !currentUser) {
       setError("Cannot start call - no chat selected");
@@ -294,6 +236,25 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
       peerConnectionRef.current = peerConnection;
 
       stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          setDoc(doc(db, "calls", selectedChat.id), {
+            type: "ice-candidate",
+            candidate: iceCandidateToObject(event.candidate),
+            from: currentUser.uid,
+            to: selectedChat.id,
+            timestamp: serverTimestamp()
+          }, { merge: true });
+        }
+      };
+
+      peerConnection.ontrack = (event) => {
+        const remoteStream = new MediaStream();
+        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
+        setRemoteStream(remoteStream);
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+      };
 
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
@@ -322,6 +283,7 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
     const unsubscribe = onSnapshot(doc(db, "calls", currentUser.uid), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
+        
         if (data.type === "answer" && data.from === calleeId) {
           peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer))
             .then(() => {
@@ -332,6 +294,11 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
             .catch(err => console.error("Set remote description error:", err));
           
           unsubscribe();
+        }
+        
+        if (data.type === "ice-candidate" && data.from === calleeId) {
+          peerConnection.addIceCandidate(objectToIceCandidate(data.candidate))
+            .catch(err => console.error("Error adding ICE candidate:", err));
         }
       }
     });
@@ -348,6 +315,13 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
           setIncomingCall(data);
           setCallerName(data.fromName);
           setShowIncomingCallModal(true);
+        }
+        
+        if (data.type === "ice-candidate") {
+          if (peerConnectionRef.current) {
+            peerConnectionRef.current.addIceCandidate(objectToIceCandidate(data.candidate))
+              .catch(err => console.error("Error adding ICE candidate:", err));
+          }
         }
         
         if (data.type === "end-call") {
@@ -383,6 +357,18 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
       peerConnectionRef.current = peerConnection;
 
       stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          setDoc(doc(db, "calls", incomingCall.from), {
+            type: "ice-candidate",
+            candidate: iceCandidateToObject(event.candidate),
+            from: currentUser.uid,
+            to: incomingCall.from,
+            timestamp: serverTimestamp()
+          }, { merge: true });
+        }
+      };
 
       await peerConnection.setRemoteDescription(
         new RTCSessionDescription(incomingCall.offer)
@@ -473,7 +459,14 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
     if (remoteStream) remoteStream.getTracks().forEach(track => track.stop());
     if (peerConnectionRef.current) peerConnectionRef.current.close();
 
-    if (selectedChat?.id) await deleteDoc(doc(db, "calls", selectedChat.id));
+    if (selectedChat?.id) {
+      await setDoc(doc(db, "calls", selectedChat.id), {
+        type: "end-call",
+        from: currentUser.uid,
+        to: selectedChat.id,
+        timestamp: serverTimestamp()
+      });
+    }
     if (currentUser?.uid) await deleteDoc(doc(db, "calls", currentUser.uid));
 
     setVideoCallActive(false);
@@ -789,7 +782,7 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   }
 
   return (
-    <Container fluid className="chat-container p-0 d-flex flex-column h-100" style={applyThemeStyles()}>
+    <Container fluid className="chat-container p-0 d-flex flex-column" style={{ height: '100vh', ...applyThemeStyles() }}>
       {/* Incoming Call Modal */}
       {showIncomingCallModal && (
         <div className="incoming-call-modal">
@@ -961,354 +954,384 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
         </div>
       )}
 
-      {/* Messages Container */}
-      <div className="messages-container flex-grow-1 p-3 position-relative overflow-hidden">
-        {/* Water Droplets Animation */}
-        <div className="water-droplets">
-          {Array.from({ length: 30 }).map((_, index) => {
-            const left = Math.random() * 100;
-            const delay = Math.random() * 5;
-            const duration = 2 + Math.random() * 3;
-            return (
-              <span
-                className="droplet"
-                key={index}
-                style={{
-                  left: `${left}%`,
-                  animationDelay: `${delay}s`,
-                  animationDuration: `${duration}s`,
-                }}
-              ></span>
-            );
-          })}
-        </div>
-
-        {/* Chat Content */}
-        {chats.length === 0 ? (
-          <div className="d-flex justify-content-center align-items-center h-100 position-relative" style={{ zIndex: 1 }}>
-            <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-              <p className="text-muted mb-1">Start the conversation</p>
-              <p className="text-muted small">No messages yet. Say hello!</p>
-            </div>
-          </div>
-        ) : (
-          <div className="messages-list position-relative" style={{ zIndex: 1 }}>
-            {chats.map((chat) => {
-              const isSent = chat.userId === currentUser?.uid;
-              const formattedTime = chat.timestamp?.seconds
-                ? new Date(chat.timestamp.seconds * 1000).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })
-                : "Sending...";
-
+      {/* Main Content Area */}
+      <div className="d-flex flex-column flex-grow-1" style={{ overflow: 'hidden', position: 'relative' }}>
+        {/* Messages Container */}
+        <div 
+          className="flex-grow-1 p-3 overflow-y-auto" 
+          style={{ 
+            scrollBehavior: 'smooth',
+            paddingBottom: '150px' // Space for input area
+          }}
+          ref={messagesContainerRef}
+        >
+          {/* Water Droplets Animation */}
+          <div className="water-droplets">
+            {Array.from({ length: 30 }).map((_, index) => {
+              const left = Math.random() * 100;
+              const delay = Math.random() * 5;
+              const duration = 2 + Math.random() * 3;
               return (
-                <div 
-                  key={chat.id} 
-                  className={`message-wrapper d-flex mb-3 ${isSent ? 'justify-content-end' : 'justify-content-start'}`}
-                  onMouseEnter={() => {
-                    setIsHoveringMessage(true);
-                    setShowDropdown(chat.id);
+                <span
+                  className="droplet"
+                  key={index}
+                  style={{
+                    left: `${left}%`,
+                    animationDelay: `${delay}s`,
+                    animationDuration: `${duration}s`,
                   }}
-                  onMouseLeave={() => {
-                    setIsHoveringMessage(false);
-                    setShowDropdown(null);
-                  }}
-                  onTouchStart={() => {
-                    setIsHoveringMessage(true);
-                    setShowDropdown(chat.id);
-                  }}
-                  onTouchEnd={() => {
-                    setIsHoveringMessage(false);
-                    setShowDropdown(null);
-                  }}
-                >
-                  {!isSent && (
-                    <Image
-                      src={selectedChat?.photoURL || selectedChat?.profilePic || defaultProfile}
-                      alt="Profile"
-                      roundedCircle
-                      width={36}
-                      height={36}
-                      className="me-2 align-self-end"
-                    />
-                  )}
-
-                  <div className="position-relative">
-                    <Card className={`message-card ${isSent ? 'sent' : 'received'} ${chat.isVideoCall ? 'video-call' : ''}`}>
-                      <Card.Body className="p-2">
-                        
-                        {/* Reply Preview */}
-                        {chat.replyTo && (
-                          <Card className={`mb-2 ${isSent ? 'bg-primary text-white' : 'bg-light'}`}>
-                            <Card.Body className="p-2">
-                              <small className="fw-bold">{chat.replyTo.user}</small>
-                              <p className="mb-0 small">{chat.replyTo.text}</p>
-                            </Card.Body>
-                          </Card>
-                        )}
-
-                        {/* Message Content */}
-                        {editingMessageId === chat.id ? (
-                          <Form.Control
-                            as="textarea"
-                            value={newMessage}
-                            onChange={(e) => setNewMessage(e.target.value)}
-                            className="border-0 shadow-none p-0 mb-1"
-                            autoFocus
-                          />
-                        ) : (
-                          <>
-                            {chat.audioUrl ? (
-                              <div className="d-flex align-items-center audio-message">
-                                <Button 
-                                  variant="link" 
-                                  className="p-0 me-2"
-                                  onClick={isPlayingAudio && audioRef.current?.src === chat.audioUrl ? stopAudio : playAudio}
-                                >
-                                  {isPlayingAudio && audioRef.current?.src === chat.audioUrl ? (
-                                    <FaStop className="text-danger" />
-                                  ) : (
-                                    <FaPlay className="text-primary" />
-                                  )}
-                                </Button>
-                                <ProgressBar 
-                                  now={30} 
-                                  style={{ width: '100px', height: '8px' }} 
-                                  className="flex-grow-1"
-                                />
-                                <small className="ms-2">{formatTime(30)}</small>
-                                <audio 
-                                  ref={audioRef}
-                                  src={chat.audioUrl}
-                                  onEnded={() => setIsPlayingAudio(false)}
-                                  hidden
-                                />
-                              </div>
-                            ) : chat.isVideoCall ? (
-                              <div className="d-flex align-items-center video-call-message">
-                                <FaVideoCall className="me-2" size={18} />
-                                <div>
-                                  <p className="mb-0">{chat.text}</p>
-                                  {chat.callDuration && (
-                                    <small className="text-muted">
-                                      Duration: {formatCallDuration(chat.callDuration)}
-                                    </small>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="mb-1">{chat.text}</p>
-                            )}
-                          </>
-                        )}
-
-                        {/* Message Metadata */}
-                        <div className="d-flex justify-content-between align-items-center">
-                          <small className={`text-muted ${isSent ? 'text-white-50' : 'text-muted'}`}>
-                            {formattedTime}
-                          </small>
-                          {isSent && (
-                            <span className="ms-2">
-                              {chat.read ? (
-                                <BiCheckDouble className="text-white" />
-                              ) : chat.timestamp?.seconds ? (
-                                <BiCheckDouble className="text-white-50" />
-                              ) : (
-                                <BiCheck className="text-white-50" />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                      </Card.Body>
-                    </Card>
-
-                    {/* Message Actions */}
-                    {showDropdown === chat.id && (
-                      <div 
-                        ref={target}
-                        className={`message-actions ${isSent ? 'sent-actions' : 'received-actions'}`}
-                      >
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="text-muted p-0 me-1"
-                          onClick={() => {
-                            setReplyToMessage(chat);
-                            setShowDropdown(null);
-                          }}
-                        >
-                          <FaReply size={14} />
-                        </Button>
-                        
-                        {isSent && (
-                          <>
-                            {editingMessageId === chat.id ? (
-                              <Button
-                                variant="link"
-                                size="sm"
-                                className="text-success p-0 me-1"
-                                onClick={() => handleEdit(chat.id)}
-                              >
-                                Save
-                              </Button>
-                            ) : (
-                              <>
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="text-muted p-0 me-1"
-                                  onClick={() => {
-                                    setEditingMessageId(chat.id);
-                                    setNewMessage(chat.text);
-                                    setShowDropdown(null);
-                                  }}
-                                >
-                                  <FaEdit size={14} />
-                                </Button>
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  className="text-danger p-0"
-                                  onClick={() => {
-                                    handleDelete(chat.id);
-                                    setShowDropdown(null);
-                                  }}
-                                >
-                                  <FaTrash size={14} />
-                                </Button>
-                              </>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                ></span>
               );
             })}
-            <div ref={messagesEndRef} />
           </div>
-        )}
-      </div>
 
-      {/* Reply Preview */}
-      {replyToMessage && (
-        <Card className="mx-3 mb-2 bg-light border-primary">
-          <Card.Body className="p-2">
-            <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <small className="fw-bold">Replying to {replyToMessage.user}:</small>{" "}
-                <small>{replyToMessage.text}</small>
+          {/* Chat Content */}
+          {chats.length === 0 ? (
+            <div className="d-flex justify-content-center align-items-center h-100 position-relative" style={{ zIndex: 1 }}>
+              <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+                <p className="text-muted mb-1">Start the conversation</p>
+                <p className="text-muted small">No messages yet. Say hello!</p>
               </div>
-              <Button
-                variant="link"
-                className="text-danger p-0 ms-3"
-                size="sm"
-                onClick={() => setReplyToMessage(null)}
-              >
-                Cancel
-              </Button>
             </div>
-          </Card.Body>
-        </Card>
-      )}
+          ) : (
+            <div className="messages-list position-relative" style={{ zIndex: 1 }}>
+              {chats.map((chat) => {
+                const isSent = chat.userId === currentUser?.uid;
+                const formattedTime = chat.timestamp?.seconds
+                  ? new Date(chat.timestamp.seconds * 1000).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "Sending...";
 
-      {/* Input Area */}
-      <Card className="mx-3 mb-3 border-0 shadow-sm mt-4">
-        <Card.Body className="p-2">
-          {audioUrl && (
-            <div className="d-flex align-items-center mb-2 p-2 bg-light rounded">
-              <audio src={audioUrl} controls className="me-2" />
-              <Button 
-                variant="link" 
-                className="text-danger p-0 ms-auto"
-                onClick={() => {
-                  setAudioUrl("");
-                  setAudioBlob(null);
-                }}
-              >
-                <FaTrash size={14} />
-              </Button>
+                return (
+                  <div 
+                    key={chat.id} 
+                    className={`message-wrapper d-flex mb-3 ${isSent ? 'justify-content-end' : 'justify-content-start'}`}
+                    onMouseEnter={() => {
+                      setIsHoveringMessage(true);
+                      setShowDropdown(chat.id);
+                    }}
+                    onMouseLeave={() => {
+                      setIsHoveringMessage(false);
+                      setShowDropdown(null);
+                    }}
+                    onTouchStart={() => {
+                      setIsHoveringMessage(true);
+                      setShowDropdown(chat.id);
+                    }}
+                    onTouchEnd={() => {
+                      setIsHoveringMessage(false);
+                      setShowDropdown(null);
+                    }}
+                  >
+                    {!isSent && (
+                      <Image
+                        src={selectedChat?.photoURL || selectedChat?.profilePic || defaultProfile}
+                        alt="Profile"
+                        roundedCircle
+                        width={36}
+                        height={36}
+                        className="me-2 align-self-end"
+                      />
+                    )}
+
+                    <div className="position-relative">
+                      <Card className={`message-card ${isSent ? 'sent' : 'received'} ${chat.isVideoCall ? 'video-call' : ''}`}>
+                        <Card.Body className="p-2">
+                          
+                          {/* Reply Preview */}
+                          {chat.replyTo && (
+                            <Card className={`mb-2 ${isSent ? 'bg-primary text-white' : 'bg-light'}`}>
+                              <Card.Body className="p-2">
+                                <small className="fw-bold">{chat.replyTo.user}</small>
+                                <p className="mb-0 small">{chat.replyTo.text}</p>
+                              </Card.Body>
+                            </Card>
+                          )}
+
+                          {/* Message Content */}
+                          {editingMessageId === chat.id ? (
+                            <Form.Control
+                              as="textarea"
+                              value={newMessage}
+                              onChange={(e) => setNewMessage(e.target.value)}
+                              className="border-0 shadow-none p-0 mb-1"
+                              autoFocus
+                            />
+                          ) : (
+                            <>
+                              {chat.audioUrl ? (
+                                <div className="d-flex align-items-center audio-message">
+                                  <Button 
+                                    variant="link" 
+                                    className="p-0 me-2"
+                                    onClick={isPlayingAudio && audioRef.current?.src === chat.audioUrl ? stopAudio : playAudio}
+                                  >
+                                    {isPlayingAudio && audioRef.current?.src === chat.audioUrl ? (
+                                      <FaStop className="text-danger" />
+                                    ) : (
+                                      <FaPlay className="text-primary" />
+                                    )}
+                                  </Button>
+                                  <ProgressBar 
+                                    now={30} 
+                                    style={{ width: '100px', height: '8px' }} 
+                                    className="flex-grow-1"
+                                  />
+                                  <small className="ms-2">{formatTime(30)}</small>
+                                  <audio 
+                                    ref={audioRef}
+                                    src={chat.audioUrl}
+                                    onEnded={() => setIsPlayingAudio(false)}
+                                    hidden
+                                  />
+                                </div>
+                              ) : chat.isVideoCall ? (
+                                <div className="d-flex align-items-center video-call-message">
+                                  <FaVideoCall className="me-2" size={18} />
+                                  <div>
+                                    <p className="mb-0">{chat.text}</p>
+                                    {chat.callDuration && (
+                                      <small className="text-muted">
+                                        Duration: {formatCallDuration(chat.callDuration)}
+                                      </small>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <p className="mb-1">{chat.text}</p>
+                              )}
+                            </>
+                          )}
+
+                          {/* Message Metadata */}
+                          <div className="d-flex justify-content-between align-items-center">
+                            <small className={`text-muted ${isSent ? 'text-white-50' : 'text-muted'}`}>
+                              {formattedTime}
+                            </small>
+                            {isSent && (
+                              <span className="ms-2">
+                                {chat.read ? (
+                                  <BiCheckDouble className="text-white" />
+                                ) : chat.timestamp?.seconds ? (
+                                  <BiCheckDouble className="text-white-50" />
+                                ) : (
+                                  <BiCheck className="text-white-50" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+                        </Card.Body>
+                      </Card>
+
+                      {/* Message Actions */}
+                      {showDropdown === chat.id && (
+                        <div 
+                          ref={target}
+                          className={`message-actions ${isSent ? 'sent-actions' : 'received-actions'}`}
+                        >
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-muted p-0 me-1"
+                            onClick={() => {
+                              setReplyToMessage(chat);
+                              setShowDropdown(null);
+                            }}
+                          >
+                            <FaReply size={14} />
+                          </Button>
+                          
+                          {isSent && (
+                            <>
+                              {editingMessageId === chat.id ? (
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="text-success p-0 me-1"
+                                  onClick={() => handleEdit(chat.id)}
+                                >
+                                  Save
+                                </Button>
+                              ) : (
+                                <>
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="text-muted p-0 me-1"
+                                    onClick={() => {
+                                      setEditingMessageId(chat.id);
+                                      setNewMessage(chat.text);
+                                      setShowDropdown(null);
+                                    }}
+                                  >
+                                    <FaEdit size={14} />
+                                  </Button>
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="text-danger p-0"
+                                    onClick={() => {
+                                      handleDelete(chat.id);
+                                      setShowDropdown(null);
+                                    }}
+                                  >
+                                    <FaTrash size={14} />
+                                  </Button>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
             </div>
           )}
-          
-          <InputGroup>
-            <Button 
-              variant="link" 
-              className="text-muted"
-              onClick={() => setShowPicker(!showPicker)}
-            >
-              <FaSmile size={20} />
-            </Button>
-            
-            {isRecording ? (
-              <div className="d-flex align-items-center flex-grow-1 px-2">
-                <Button 
-                  variant="danger" 
-                  className="rounded-circle me-2"
-                  onClick={stopRecording}
-                >
-                  <FaStop size={12} />
-                </Button>
-                <div className="flex-grow-1">
-                  <ProgressBar 
-                    now={(recordingTime % 30) * 3.33} 
-                    animated 
-                    variant="danger" 
-                  />
-                </div>
-                <small className="ms-2">{formatTime(recordingTime)}</small>
-              </div>
-            ) : (
-              <Form.Control
-                as="textarea"
-                rows={1}
-                placeholder="Type a message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-                className="border-0 shadow-none"
-                style={{ resize: 'none' }}
-              />
-            )}
-            
-            <Button 
-              variant="link" 
-              className="text-muted me-1"
-              onClick={isRecording ? stopRecording : startRecording}
-            >
-              {isRecording ? (
-                <FaStop size={20} className="text-danger" />
-              ) : (
-                <FaMicrophone size={20} />
-              )}
-            </Button>
-            
-            <Button 
-              variant="link" 
-              className="text-primary"
-              disabled={!message.trim() && !audioUrl}
-              onClick={handleSendMessage}
-            >
-              <FaPaperPlane size={20} />
-            </Button>
-          </InputGroup>
-        </Card.Body>
-      </Card>
-
-      {/* Emoji Picker */}
-      {showPicker && (
-        <div className="emoji-picker">
-          <EmojiPicker 
-            onEmojiClick={handleEmojiSelect} 
-            theme={theme === 'dark' ? 'dark' : 'light'} 
-            height={350} 
-            width="100%"
-            previewConfig={{ showPreview: false }}
-          />
         </div>
-      )}
+
+        <div 
+          className="input-area w-100 mt-5"
+          style={{ 
+            padding: '15px',
+            borderTop: '1px solid #eee',
+            marginTop:'40px',
+            position: 'sticky',
+            bottom: 0,
+            zIndex: 1000,
+            background: 'linear-gradient(135deg,rgb(209, 10, 248),rgb(209, 29, 158),#fffff)'
+          }}
+        >
+
+          {/* Reply Preview */}
+          {replyToMessage && (
+            <Card className="mb-2 bg-light border-primary">
+              <Card.Body className="p-2">
+                <div className="d-flex justify-content-between align-items-center">
+                  <div>
+                    <small className="fw-bold">Replying to {replyToMessage.user}:</small>{" "}
+                    <small>{replyToMessage.text}</small>
+                  </div>
+                  <Button
+                    variant="link"
+                    className="text-danger p-0 ms-3"
+                    size="sm"
+                    onClick={() => setReplyToMessage(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </Card.Body>
+            </Card>
+          )}
+
+          {/* Input Area */}
+          <Card className="mb-3 border-0 shadow-sm ">
+            <Card.Body className="p-2 ">
+              {audioUrl && (
+                <div className="d-flex align-items-center mb-2 p-2 bg-light rounded">
+                  <audio src={audioUrl} controls className="me-2" />
+                  <Button 
+                    variant="link" 
+                    className="text-danger p-0 ms-auto"
+                    onClick={() => {
+                      setAudioUrl("");
+                      setAudioBlob(null);
+                    }}
+                  >
+                    <FaTrash size={14} />
+                  </Button>
+                </div>
+              )}
+              
+              <InputGroup>
+                <Button 
+                  variant="link" 
+                  className="text-muted"
+                  onClick={() => setShowPicker(!showPicker)}
+                >
+                  <FaSmile size={20} />
+                </Button>
+                
+                {isRecording ? (
+                  <div className="d-flex align-items-center flex-grow-1 px-2">
+                    <Button 
+                      variant="danger" 
+                      className="rounded-circle me-2"
+                      onClick={stopRecording}
+                    >
+                      <FaStop size={12} />
+                    </Button>
+                    <div className="flex-grow-1">
+                      <ProgressBar 
+                        now={(recordingTime % 30) * 3.33} 
+                        animated 
+                        variant="danger" 
+                      />
+                    </div>
+                    <small className="ms-2">{formatTime(recordingTime)}</small>
+                  </div>
+                ) : (
+                  <Form.Control
+                    as="textarea"
+                    rows={1}
+                    placeholder="Type a message..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                    className="border-0 shadow-none"
+                    style={{ resize: 'none' }}
+                  />
+                )}
+                
+                <Button 
+                  variant="link" 
+                  className="text-muted me-1"
+                  onClick={isRecording ? stopRecording : startRecording}
+                >
+                  {isRecording ? (
+                    <FaStop size={20} className="text-danger" />
+                  ) : (
+                    <FaMicrophone size={20} />
+                  )}
+                </Button>
+                
+                <Button 
+                  variant="link" 
+                  className="text-primary"
+                  disabled={!message.trim() && !audioUrl}
+                  onClick={handleSendMessage}
+                >
+                  <FaPaperPlane size={20} />
+                </Button>
+              </InputGroup>
+            </Card.Body>
+          </Card>
+
+          {/* Emoji Picker */}
+          {showPicker && (
+            <div className="emoji-picker-container" style={{ 
+              position: 'absolute', 
+              bottom: '100%', 
+              left: 0, 
+              width: '100%',
+              zIndex: 1001
+            }}>
+              <EmojiPicker 
+                onEmojiClick={handleEmojiSelect} 
+                theme={theme === 'dark' ? 'dark' : 'light'} 
+                height={350} 
+                width="100%"
+                previewConfig={{ showPreview: false }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Profile Image Zoom Modal */}
       <Modal 
@@ -1361,7 +1384,6 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
           border: none;
           box-shadow: 0 1px 1px rgba(0,0,0,0.1);
           transition: background-color 0.3s ease;
-          max-width: 70%;
         }
         
         .message-card.sent {
@@ -1402,11 +1424,12 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
           margin-left: 8px;
         }
         
-        .emoji-picker {
+        .emoji-picker-container {
           position: absolute;
-          bottom: 70px;
-          right: 20px;
-          z-index: 10;
+          bottom: 100%;
+          left: 0;
+          width: 100%;
+          z-index: 1001;
         }
 
         .audio-message {
@@ -1506,6 +1529,15 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
           
           .message-actions {
             padding: 2px 4px;
+          }
+
+          .input-area {
+            padding: 10px !important;
+          }
+
+          .emoji-picker-container {
+            width: 100% !important;
+            left: 0 !important;
           }
         }
       `}</style>
