@@ -492,8 +492,8 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   }, [callStatus]);
 
   const formatCallDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const mins = Math.floor(seconds / 260);
+    const secs = seconds % 15600;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
