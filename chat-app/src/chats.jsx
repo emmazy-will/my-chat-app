@@ -430,52 +430,96 @@ const WholeChats = ({ selectedChat, setSelectedChat }) => {
   };
 
   const endVideoCall = async () => {
-    clearInterval(callDurationIntervalRef.current);
-    
-    // Send call log if call was active
-    if (callStatus === 'in-progress' && selectedChat && currentUser) {
-      const chatId = currentUser.uid < selectedChat.id 
-        ? `${currentUser.uid}_${selectedChat.id}` 
-        : `${selectedChat.id}_${currentUser.uid}`;
+    try {
+      // Clear the call duration timer
+      clearInterval(callDurationIntervalRef.current);
       
-      try {
-        await addDoc(collection(db, "chats"), {
-          chatId,
-          userId: currentUser.uid,
-          user: currentUser.displayName || "Anonymous",
-          receiverId: selectedChat.id,
-          text: "Video call ended",
-          isVideoCall: true,
-          callDuration: callDuration,
-          timestamp: serverTimestamp(),
-          read: false,
+      // Send call log if call was active
+      if (callStatus === 'in-progress' && selectedChat && currentUser) {
+        const chatId = currentUser.uid < selectedChat.id 
+          ? `${currentUser.uid}_${selectedChat.id}` 
+          : `${selectedChat.id}_${currentUser.uid}`;
+        
+        try {
+          await addDoc(collection(db, "chats"), {
+            chatId,
+            userId: currentUser.uid,
+            user: currentUser.displayName || "Anonymous",
+            receiverId: selectedChat.id,
+            text: "Video call ended",
+            isVideoCall: true,
+            callDuration: callDuration,
+            timestamp: serverTimestamp(),
+            read: false,
+          });
+        } catch (error) {
+          console.error("Error saving call log:", error);
+        }
+      }
+  
+      // Stop all media tracks
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          track.stop();
+          track.enabled = false;
         });
-      } catch (error) {
-        console.error("Error saving call log:", error);
+      }
+      if (remoteStream) {
+        remoteStream.getTracks().forEach(track => {
+          track.stop();
+          track.enabled = false;
+        });
+      }
+  
+      // Close the peer connection if it exists
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.ontrack = null;
+        peerConnectionRef.current.onicecandidate = null;
+        peerConnectionRef.current.oniceconnectionstatechange = null;
+        peerConnectionRef.current.onsignalingstatechange = null;
+        peerConnectionRef.current.onnegotiationneeded = null;
+        peerConnectionRef.current.close();
+      }
+  
+      // Notify the other participant that call has ended
+      if (selectedChat?.id) {
+        await setDoc(doc(db, "calls", selectedChat.id), {
+          type: "end-call",
+          from: currentUser.uid,
+          to: selectedChat.id,
+          timestamp: serverTimestamp()
+        }, { merge: true }).catch(error => {
+          console.error("Error sending end-call notification:", error);
+        });
+      }
+  
+      // Clean up local call document
+      if (currentUser?.uid) {
+        await deleteDoc(doc(db, "calls", currentUser.uid)).catch(error => {
+          console.error("Error deleting local call document:", error);
+        });
+      }
+  
+    } catch (error) {
+      console.error("Error in endVideoCall:", error);
+    } finally {
+      // Reset all states regardless of errors
+      setVideoCallActive(false);
+      setLocalStream(null);
+      setRemoteStream(null);
+      setCallStatus('');
+      setCallDuration(0);
+      setCallStartTime(null);
+      peerConnectionRef.current = null;
+      
+      // Clear video elements
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
       }
     }
-
-    if (localStream) localStream.getTracks().forEach(track => track.stop());
-    if (remoteStream) remoteStream.getTracks().forEach(track => track.stop());
-    if (peerConnectionRef.current) peerConnectionRef.current.close();
-
-    if (selectedChat?.id) {
-      await setDoc(doc(db, "calls", selectedChat.id), {
-        type: "end-call",
-        from: currentUser.uid,
-        to: selectedChat.id,
-        timestamp: serverTimestamp()
-      });
-    }
-    if (currentUser?.uid) await deleteDoc(doc(db, "calls", currentUser.uid));
-
-    setVideoCallActive(false);
-    setLocalStream(null);
-    setRemoteStream(null);
-    setCallStatus('');
-    setCallDuration(0);
-    setCallStartTime(null);
-    peerConnectionRef.current = null;
   };
 
   useEffect(() => {
